@@ -1,30 +1,57 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:todoist/core/error/failure.dart';
+import 'package:todoist/domain/entities/project.dart';
+import 'package:todoist/domain/repositories/projects_repository.dart';
+import 'package:todoist/domain/usecases/get_projects_usecase.dart';
 
-import 'package:todoist/main.dart';
+class MockProjectsRepository extends Mock implements ProjectsRepository {}
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  late GetProjects usecase;
+  late MockProjectsRepository mockRepository;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  setUp(() {
+    mockRepository = MockProjectsRepository();
+    usecase = GetProjects(mockRepository);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  test('should get projects from the repository', () async {
+    final projects = [
+      Project(
+        id: '2203306141',
+        name: 'Shopping List',
+        commentCount: 10,
+        order: 1,
+        color: 'charcoal',
+        isShared: false,
+        isFavorite: false,
+        parentId: '220325187',
+        isInboxProject: false,
+        isTeamInbox: false,
+        viewStyle: 'list',
+        url: 'https://todoist.com/showProject?id=2203306141',
+      )
+    ];
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    when(mockRepository.getProjects()).thenAnswer((_) async => Right(projects));
+
+    final result = await usecase(NoParams());
+
+    expect(result, Right(projects));
+    verify(mockRepository.getProjects());
+    verifyNoMoreInteractions(mockRepository);
+  });
+
+  test('should return ServerFailure when something goes wrong', () async {
+    when(mockRepository.getProjects())
+        .thenAnswer((_) async => Left(ServerFailure()));
+
+    final result = await usecase(NoParams());
+
+    expect(result, Left(ServerFailure()));
+    verify(mockRepository.getProjects());
+    verifyNoMoreInteractions(mockRepository);
   });
 }
